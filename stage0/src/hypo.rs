@@ -6,6 +6,8 @@
 
 use lpc55_romapi::FlashStatus;
 
+use core::arch;
+
 // FlashStatus is represented as a u32 so it's safe to return directly.
 // We convert on the receiving end for safety
 // #[cmse_nonsecure_entry] We want this eventually
@@ -61,7 +63,7 @@ pub unsafe extern "C" fn write_to_flash(
     //
     // The sg is a nop when not using TrustZone. This will need to be
     // a bxns when we get full TrustZone support
-    asm!(
+    arch::asm!(
         "
         sg
         push {{lr}}
