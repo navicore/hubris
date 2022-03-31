@@ -4,7 +4,6 @@
 
 #![no_std]
 #![no_main]
-#![feature(asm)]
 
 use userlib::*;
 
@@ -24,12 +23,14 @@ fn nullread() {
 #[cfg(any(armv7m, armv8m))]
 #[inline(never)]
 fn divzero() {
+    use core::arch;
+
     unsafe {
         // Divide by 0
         let p: u32 = 123;
         let q: u32 = 0;
         let _res: u32;
-        asm!("udiv r2, r1, r0", in("r1") p, in("r0") q, out("r2") _res);
+        arch::asm!("udiv r2, r1, r0", in("r1") p, in("r0") q, out("r2") _res);
     }
 }
 
