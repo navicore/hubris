@@ -7,7 +7,7 @@ stacksize = 896
 [kernel]
 path = "."
 name = "demo-stm32f4-discovery"
-requires = {flash = 20000, ram = 3072}
+requires = {flash = 20736, ram = 3072}
 #
 # For the kernel (and for any task that logs), we are required to enable
 # either "itm" (denoting logging/panicking via ARM's Instrumentation Trace
