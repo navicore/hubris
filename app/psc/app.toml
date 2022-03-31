@@ -140,7 +140,7 @@ task-slots = ["sys", "rcc_driver", { spi_driver = "spi2_driver" }]
 path = "../../task/udpecho"
 name = "task-udpecho"
 priority = 3
-requires = {flash = 16384, ram = 8192}
+requires = {flash = 32768, ram = 8192}
 stacksize = 4096
 start = true
 task-slots = ["net"]
