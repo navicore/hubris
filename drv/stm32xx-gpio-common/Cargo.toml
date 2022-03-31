@@ -11,12 +11,7 @@ stm32h7 = { version = "0.14", default-features = false, optional = true }
 userlib = {path = "../../sys/userlib"}
 num-traits = {version = "0.2", default-features = false}
 zerocopy = "0.6.1"
-
-[dependencies.stm32g0]
-optional = true
-git = "https://github.com/oxidecomputer/stm32-rs-nightlies"
-branch = "stm32g0b1-initial-support"
-default-features = false
+stm32g0 = { git = "https://github.com/oxidecomputer/stm32-rs-nightlies", branch = "20220401-snap", default-features = false, optional = true }
 
 [features]
 # When enabled, the `server` submodule is included, providing code for modeling

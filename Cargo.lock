@@ -373,6 +373,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cortex-m-semihosting"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c23234600452033cc77e4b761e740e02d2c4168e11dbf36ab14a0f58973592b0"
+dependencies = [
+ "cortex-m",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -933,7 +942,7 @@ name = "drv-stm32g0-usart"
 version = "0.1.0"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "drv-stm32xx-sys-api",
  "num-traits",
  "stm32g0",
@@ -1559,7 +1568,7 @@ dependencies = [
  "byteorder",
  "cfg-if 0.1.10",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "ron 0.7.0",
  "serde",
  "ssmarshal",
@@ -1959,7 +1968,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d55dedd501dfd02514646e0af4d7016ce36bc12ae177ef52056989966a1eec"
 dependencies = [
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.3.7",
 ]
 
 [[package]]
@@ -2611,7 +2620,7 @@ dependencies = [
 [[package]]
 name = "stm32g0"
 version = "0.14.0"
-source = "git+https://github.com/oxidecomputer/stm32-rs-nightlies?branch=stm32g0b1-initial-support#19280bfc90cce3020482abc1d0c57d7d2a3bf162"
+source = "git+https://github.com/oxidecomputer/stm32-rs-nightlies?branch=20220401-snap#a62c2268fdd5098885ef449e132e82aa8e2bfcdf"
 dependencies = [
  "bare-metal 1.0.0",
  "cortex-m",
@@ -2746,7 +2755,7 @@ dependencies = [
  "armv6m-atomic-hack",
  "build-util",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "hubris-num-tasks",
  "num-traits",
  "ringbuf",
@@ -2998,7 +3007,7 @@ version = "0.1.0"
 dependencies = [
  "build-util",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "hubris-num-tasks",
  "num-traits",
  "test-api",
@@ -3041,7 +3050,7 @@ dependencies = [
  "build-util",
  "cfg-if 0.1.10",
  "cortex-m",
- "cortex-m-semihosting",
+ "cortex-m-semihosting 0.5.0",
  "hubris-num-tasks",
  "num-traits",
  "test-api",
