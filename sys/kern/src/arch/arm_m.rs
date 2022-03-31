@@ -798,7 +798,7 @@ pub fn start_first_task(tick_divisor: u32, task: &task::Task) -> ! {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
             unsafe {
-                asm!("
+                core::arch::asm!("
                     @ restore the callee-save registers
                     ldm r0!, {{r4-r7}}
                     ldm r0, {{r0-r3}}
@@ -816,7 +816,7 @@ pub fn start_first_task(tick_divisor: u32, task: &task::Task) -> ! {
             }
         } else if #[cfg(any(armv7m, armv8m))] {
             unsafe {
-                asm!("
+                core::arch::asm!("
                     @ Restore callee-save registers.
                     ldm {task}, {{r4-r11}}
                     @ Trap into the kernel.
@@ -860,7 +860,7 @@ pub unsafe extern "C" fn SVCall() {
     // task context (possibly for a different task!).
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!("
+            core::arch::asm!("
                 @ Inspect LR to figure out the caller's mode.
                 mov r0, lr
                 ldr r1, =0xFFFFFFF3
@@ -933,7 +933,7 @@ pub unsafe extern "C" fn SVCall() {
                 options(noreturn),
             )
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!("
+            core::arch::asm!("
                 @ Inspect LR to figure out the caller's mode.
                 mov r0, lr
                 mov r1, #0xFFFFFFF3
@@ -1107,7 +1107,7 @@ fn pend_context_switch_from_isr() {
 pub unsafe extern "C" fn PendSV() {
     cfg_if::cfg_if! {
         if #[cfg(armv6m)] {
-            asm!(
+            core::arch::asm!(
                 "
                 @ store volatile state.
                 @ first, get a pointer to the current task.
@@ -1153,7 +1153,7 @@ pub unsafe extern "C" fn PendSV() {
                 options(noreturn),
             );
         } else if #[cfg(any(armv7m, armv8m))] {
-            asm!(
+            core::arch::asm!(
                 "
                 @ store volatile state.
                 @ first, get a pointer to the current task.
@@ -1213,7 +1213,7 @@ pub unsafe extern "C" fn DefaultHandler() {
     // We can cheaply get the identity of the interrupt that called us from the
     // bottom 9 bits of IPSR.
     let mut ipsr: u32;
-    asm!(
+    core::arch::asm!(
         "mrs {}, IPSR",
         out(reg) ipsr,
         options(pure, nomem, preserves_flags, nostack),
@@ -1306,7 +1306,7 @@ enum FaultType {
 #[naked]
 #[cfg(any(armv7m, armv8m))]
 unsafe extern "C" fn configurable_fault() {
-    asm!(
+    core::arch::asm!(
         "
         @ Read the current task pointer.
         movw r0, #:lower16:CURRENT_TASK_PTR
@@ -1366,7 +1366,7 @@ unsafe extern "C" fn configurable_fault() {
 #[naked]
 #[cfg(any(armv7m, armv8m))]
 pub unsafe extern "C" fn MemoryManagement() {
-    asm!("b {0}", sym configurable_fault, options(noreturn))
+    core::arch::asm!("b {0}", sym configurable_fault, options(noreturn))
 }
 
 /// Initial entry point for handling a bus fault.
@@ -1375,7 +1375,7 @@ pub unsafe extern "C" fn MemoryManagement() {
 #[naked]
 #[cfg(any(armv7m, armv8m))]
 pub unsafe extern "C" fn BusFault() {
-    asm!("b {0}", sym configurable_fault, options(noreturn))
+    core::arch::asm!("b {0}", sym configurable_fault, options(noreturn))
 }
 
 /// Initial entry point for handling a usage fault.
@@ -1384,7 +1384,7 @@ pub unsafe extern "C" fn BusFault() {
 #[naked]
 #[cfg(any(armv7m, armv8m))]
 pub unsafe extern "C" fn UsageFault() {
-    asm!("b {0}", sym configurable_fault, options(noreturn))
+    core::arch::asm!("b {0}", sym configurable_fault, options(noreturn))
 }
 
 /// Initial entry point for handling a hard fault (ARMv6).
@@ -1393,7 +1393,7 @@ pub unsafe extern "C" fn UsageFault() {
 #[naked]
 #[cfg(armv6m)]
 pub unsafe extern "C" fn HardFault() {
-    asm!(
+    core::arch::asm!(
         "
         @ Read the current task pointer.
         ldr r0, =CURRENT_TASK_PTR
@@ -1632,7 +1632,7 @@ unsafe extern "C" fn handle_fault(
 
     // It's safe to store our floating point registers; store them now to
     // preserve as much state as possible for debugging.
-    asm!("vstm {0}, {{s16-s31}}", in(reg) fpsave);
+    core::arch::asm!("vstm {0}, {{s16-s31}}", in(reg) fpsave);
 
     // We are now going to force a fault on our current task and directly
     // switch to a task to run.  (It may be tempting to use PendSV here,
