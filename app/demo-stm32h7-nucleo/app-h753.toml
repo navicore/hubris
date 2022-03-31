@@ -7,7 +7,7 @@ stacksize = 896
 [kernel]
 path = "."
 name = "demo-stm32h7-nucleo"
-requires = {flash = 22000, ram = 5120}
+requires = {flash = 22656, ram = 5120}
 #
 # For the kernel (and for any task that logs), we are required to enable
 # either "itm" (denoting logging/panicking via ARM's Instrumentation Trace
@@ -123,7 +123,7 @@ path = "../../drv/user-leds"
 name = "drv-user-leds"
 features = ["stm32h7"]
 priority = 2
-requires = {flash = 2048, ram = 1024}
+requires = {flash = 4096, ram = 1024}
 start = true
 task-slots = ["sys"]
 
@@ -180,7 +180,7 @@ path = "../../drv/stm32h7-hash-server"
 name = "drv-stm32h7-hash-server"
 features = ["h753"]
 priority = 3
-requires = {flash = 8192, ram=4096 }
+requires = {flash = 16384, ram=4096 }
 stacksize = 2048
 start = true
 uses = ["hash"]
