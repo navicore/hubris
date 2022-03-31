@@ -85,7 +85,7 @@ path = "../../drv/user-leds"
 name = "drv-user-leds"
 features = ["stm32h7"]
 priority = 2
-requires = {flash = 2048, ram = 1024}
+requires = {flash = 4096, ram = 1024}
 start = true
 task-slots = ["sys"]
 
@@ -94,7 +94,7 @@ path = "../../task/hiffy"
 name = "task-hiffy"
 features = ["h753", "stm32h7", "itm", "gpio", "spi"]
 priority = 3
-requires = {flash = 16384, ram = 16384 }
+requires = {flash = 32768, ram = 16384 }
 stacksize = 2048
 start = true
 task-slots = ["sys", "user_leds"]
@@ -116,7 +116,7 @@ task-slots = ["sys", "user_leds", { spi_driver = "spi2_driver" }]
 path = "../../task/udpecho"
 name = "task-udpecho"
 priority = 3
-requires = {flash = 16384, ram = 8192}
+requires = {flash = 32768, ram = 8192}
 stacksize = 4096
 start = true
 task-slots = ["net"]
