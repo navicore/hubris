@@ -64,6 +64,10 @@ fn main() -> ! {
     // off,_ only on. This means if it was _already_ on, the outputs should not
     // glitch.
 
+    // REBOOT HACK: configure the `SP3_TO_SP_INT_L` net on PI6 to an input with
+    // a pulldown.
+    sys.gpio_configure_input(sys_api::Port::I.pin(6), sys_api::Pull::Down).unwrap();
+
     // Unconditionally set our power-good detects as inputs.
     //
     // This is the expected reset state, but, good to be sure.
@@ -296,16 +300,148 @@ fn main() -> ! {
     let mut server = ServerImpl {
         state: PowerState::A2,
         seq,
+        sys,
     };
 
     loop {
-        idol_runtime::dispatch(&mut buffer, &mut server);
+        idol_runtime::dispatch_n(&mut buffer, &mut server);
     }
 }
 
 struct ServerImpl {
     state: PowerState,
     seq: seq_spi::SequencerFpga,
+    sys: sys_api::Sys,
+}
+
+impl ServerImpl {
+    pub fn have_you_tried_turning_it_off_and_back_on_again(&mut self) -> Result<(), SeqError> {
+        let hf = hf_api::HostFlash::from(HF.get_task_id());
+        let a1a0 = Reg::PWRCTRL::A0C_DIS;
+
+        self.seq.write_bytes(Addr::PWRCTRL, &[a1a0]).unwrap();
+        vcore_soc_off();
+
+        if let Err(_) = hf.set_mux(hf_api::HfMuxState::SP) {
+            return Err(SeqError::MuxToSPFailed.into());
+        }
+
+        self.state = PowerState::A2;
+        ringbuf_entry!(Trace::A2);
+        Ok(())
+    }
+
+    pub fn power_on(&mut self) -> Result<(), SeqError> {
+        //
+        // First, set our mux state to be the HostCPU
+        //
+        let hf = hf_api::HostFlash::from(HF.get_task_id());
+
+        if let Err(_) = hf.set_mux(hf_api::HfMuxState::HostCPU) {
+            return Err(SeqError::MuxToHostCPUFailed.into());
+        }
+
+        //
+        // We are going to pass through A1 on the way to A0.
+        //
+        let a1a0 = Reg::PWRCTRL::A1PWREN | Reg::PWRCTRL::A0A_EN;
+        self.seq.write_bytes(Addr::PWRCTRL, &[a1a0]).unwrap();
+
+        loop {
+            let mut power = [0u8, 0u8];
+
+            self.seq.read_bytes(Addr::A1SMSTATUS, &mut power).unwrap();
+            ringbuf_entry!(Trace::A1Power(power[0], power[1]));
+
+            if power[1] == 0x7 {
+                break;
+            }
+
+            hl::sleep_for(1);
+        }
+
+        //
+        // And power up!
+        //
+        vcore_soc_on();
+        ringbuf_entry!(Trace::RailsOn);
+
+        //
+        // Now wait for the end of Group C.
+        //
+        loop {
+            let mut power = [0u8];
+
+            self.seq.read_bytes(Addr::A0SMSTATUS, &mut power).unwrap();
+            ringbuf_entry!(Trace::A0Power(power[0]));
+
+            if power[0] == 0xc {
+                break;
+            }
+
+            hl::sleep_for(1);
+        }
+
+        //
+        // Finally, enable transmission to the SP3's UART
+        //
+        uart_sp_to_sp3_enable(&self.sys);
+        ringbuf_entry!(Trace::UartEnabled);
+
+        // REBOOT HACK: set our pin monitoring timer.
+        sys_set_timer(Some(sys_get_timer().now + BOOT_CHECK_MS), 1);
+
+        self.state = PowerState::A0;
+        Ok(())
+    }
+}
+
+const POWER_DOWN_MS: u64 = 5000;
+const BOOT_CHECK_MS: u64 = 500;
+
+impl idol_runtime::NotificationHandler for ServerImpl {
+    fn current_notification_mask(&self) -> u32 {
+        1
+    }
+
+    fn handle_notification(&mut self, bits: u32) {
+        if bits & 1 == 0 {
+            // somebody posted something other than our timer.
+            return;
+        }
+
+        match self.state {
+            PowerState::A0 => {
+                // It's time to check the host interrupt pin.
+                if self.sys.gpio_read(sys_api::Port::I.pin(6)).unwrap_lite() == 0 {
+                    // The pin is low! Kill the computer. Ignore failures. If this
+                    // fails we'll try again in 500ms. If it succeeds we'll leave A0
+                    // and stop trying.
+                    if self.have_you_tried_turning_it_off_and_back_on_again().is_ok() {
+                        // Move our timer farther into the future to delay
+                        // power-on.
+                        sys_set_timer(Some(sys_get_timer().now + POWER_DOWN_MS, 1);
+                    } else {
+                        // Welp, let's try again in a bit.
+                        sys_set_timer(Some(sys_get_timer().now + BOOT_CHECK_MS), 1);
+                    }
+                } else {
+                    // Set the monitoring timer
+                    sys_set_timer(Some(sys_get_timer().now + BOOT_CHECK_MS), 1);
+                }
+            }
+            PowerState::A2 => {
+                // Time to power the system back on. Ignore failures. If we
+                // fail, we'll try again in the time shown below.
+                self.power_on().ok();
+                // Set the monitoring timer
+                sys_set_timer(Some(sys_get_timer().now + BOOT_CHECK_MS), 1);
+            }
+            _ => {
+                // uh shouldn't have had a timer set
+            }
+        }
+    }
 }
 
 impl idl::InOrderSequencerImpl for ServerImpl {
@@ -325,81 +461,10 @@ impl idl::InOrderSequencerImpl for ServerImpl {
         ringbuf_entry!(Trace::SetState(self.state, state));
 
         match (self.state, state) {
-            (PowerState::A2, PowerState::A0) => {
-                //
-                // First, set our mux state to be the HostCPU
-                //
-                let hf = hf_api::HostFlash::from(HF.get_task_id());
-
-                if let Err(_) = hf.set_mux(hf_api::HfMuxState::HostCPU) {
-                    return Err(SeqError::MuxToHostCPUFailed.into());
-                }
-
-                //
-                // We are going to pass through A1 on the way to A0.
-                //
-                let a1a0 = Reg::PWRCTRL::A1PWREN | Reg::PWRCTRL::A0A_EN;
-                self.seq.write_bytes(Addr::PWRCTRL, &[a1a0]).unwrap();
-
-                loop {
-                    let mut power = [0u8, 0u8];
-
-                    self.seq.read_bytes(Addr::A1SMSTATUS, &mut power).unwrap();
-                    ringbuf_entry!(Trace::A1Power(power[0], power[1]));
-
-                    if power[1] == 0x7 {
-                        break;
-                    }
-
-                    hl::sleep_for(1);
-                }
-
-                //
-                // And power up!
-                //
-                vcore_soc_on();
-                ringbuf_entry!(Trace::RailsOn);
-
-                //
-                // Now wait for the end of Group C.
-                //
-                loop {
-                    let mut power = [0u8];
-
-                    self.seq.read_bytes(Addr::A0SMSTATUS, &mut power).unwrap();
-                    ringbuf_entry!(Trace::A0Power(power[0]));
-
-                    if power[0] == 0xc {
-                        break;
-                    }
-
-                    hl::sleep_for(1);
-                }
-
-                //
-                // Finally, enable transmission to the SP3's UART
-                //
-                uart_sp_to_sp3_enable();
-                ringbuf_entry!(Trace::UartEnabled);
-
-                self.state = PowerState::A0;
-                Ok(())
-            }
+            (PowerState::A2, PowerState::A0) => Ok(self.power_on()?),
 
             (PowerState::A0, PowerState::A2) => {
-                let hf = hf_api::HostFlash::from(HF.get_task_id());
-                let a1a0 = Reg::PWRCTRL::A0C_DIS;
-
-                self.seq.write_bytes(Addr::PWRCTRL, &[a1a0]).unwrap();
-                vcore_soc_off();
-
-                if let Err(_) = hf.set_mux(hf_api::HfMuxState::SP) {
-                    return Err(SeqError::MuxToSPFailed.into());
-                }
-
-                self.state = PowerState::A2;
-                ringbuf_entry!(Trace::A2);
-                Ok(())
+                Ok(self.have_you_tried_turning_it_off_and_back_on_again()?)
             }
 
             _ => Err(RequestError::Runtime(SeqError::IllegalTransition)),
@@ -499,9 +564,7 @@ cfg_if::cfg_if! {
         //
         const UART_TX_ENABLE: sys_api::PinSet = sys_api::Port::A.pin(5);
 
-        fn uart_sp_to_sp3_enable() {
-            let sys = sys_api::Sys::from(SYS.get_task_id());
-
+        fn uart_sp_to_sp3_enable(sys: &sys_api::Sys) {
             sys.gpio_configure_output(
                 UART_TX_ENABLE,
                 sys_api::OutputType::PushPull,
