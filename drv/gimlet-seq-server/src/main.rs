@@ -420,7 +420,7 @@ impl idol_runtime::NotificationHandler for ServerImpl {
                     if self.have_you_tried_turning_it_off_and_back_on_again().is_ok() {
                         // Move our timer farther into the future to delay
                         // power-on.
-                        sys_set_timer(Some(sys_get_timer().now + POWER_DOWN_MS, 1);
+                        sys_set_timer(Some(sys_get_timer().now + POWER_DOWN_MS), 1);
                     } else {
                         // Welp, let's try again in a bit.
                         sys_set_timer(Some(sys_get_timer().now + BOOT_CHECK_MS), 1);
