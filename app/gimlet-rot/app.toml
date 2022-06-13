@@ -135,4 +135,13 @@ pins = [
 ]
 spi_num = 5
 
-
+[tasks.sp_measure]
+name = "task-sp-measure"
+priority = 5
+max-sizes = {flash = 131072, ram = 8192}
+start = true
+task-slots = ["swd"]
+stacksize = 2048
+ 
+[tasks.sp_measure.config]
+binary_path = "../../target/gimlet-b/dist/final.bin"
